@@ -29,7 +29,7 @@
 #include <iostream>
 #include <unordered_map>
 
-static const int NUM_CLASSES_YOLO = 80;
+static const int NUM_CLASSES_YOLO = 13;
 
 extern "C" bool NvDsInferParseCustomYoloV3(
     std::vector<NvDsInferLayerInfo> const& outputLayersInfo,
@@ -167,22 +167,22 @@ nmsAllClasses(const float nmsThresh,
 static std::vector<NvDsInferParseObjectInfo>
 decodeYoloV2Tensor(
     const float* detections, const std::vector<float> &anchors,
-    const uint gridSize, const uint stride, const uint numBBoxes,
+    const uint gridSizeX, const uint gridSizeY, const uint stride, const uint numBBoxes,
     const uint numOutputClasses, const float probThresh, const uint& netW,
     const uint& netH)
 {
     std::vector<NvDsInferParseObjectInfo> binfo;
-    for (uint y = 0; y < gridSize; ++y)
+    for (uint y = 0; y < gridSizeY; ++y)
     {
-        for (uint x = 0; x < gridSize; ++x)
+        for (uint x = 0; x < gridSizeX; ++x)
         {
             for (uint b = 0; b < numBBoxes; ++b)
             {
                 const float pw = anchors[b * 2];
                 const float ph = anchors[b * 2 + 1];
 
-                const int numGridCells = gridSize * gridSize;
-                const int bbindex = y * gridSize + x;
+                const int numGridCells = gridSizeX * gridSizeY;
+                const int bbindex = y * gridSizeX + x;
                 const float bx
                     = x + detections[bbindex + numGridCells * (b * (5 + numOutputClasses) + 0)];
                 const float by
@@ -226,22 +226,22 @@ decodeYoloV2Tensor(
 static std::vector<NvDsInferParseObjectInfo>
 decodeYoloV3Tensor(
     const float* detections, const std::vector<int> &mask, const std::vector<float> &anchors,
-    const uint gridSize, const uint stride, const uint numBBoxes,
+    const uint gridSizeX, const uint gridSizeY, const uint stride, const uint numBBoxes,
     const uint numOutputClasses, const float probThresh, const uint& netW,
     const uint& netH)
 {
     std::vector<NvDsInferParseObjectInfo> binfo;
-    for (uint y = 0; y < gridSize; ++y)
+    for (uint y = 0; y < gridSizeY; ++y)
     {
-        for (uint x = 0; x < gridSize; ++x)
+        for (uint x = 0; x < gridSizeX; ++x)
         {
             for (uint b = 0; b < numBBoxes; ++b)
             {
                 const float pw = anchors[mask[b] * 2];
                 const float ph = anchors[mask[b] * 2 + 1];
 
-                const int numGridCells = gridSize * gridSize;
-                const int bbindex = y * gridSize + x;
+                const int numGridCells = gridSizeX * gridSizeY;
+                const int bbindex = y * gridSizeX + x;
                 const float bx
                     = x + detections[bbindex + numGridCells * (b * (5 + numOutputClasses) + 0)];
                 const float by
@@ -304,8 +304,8 @@ static bool NvDsInferParseYoloV3(
     const std::vector<std::vector<int>> &masks)
 {
     const uint kNUM_BBOXES = 3;
-    static const float kNMS_THRESH = 0.3f;
-    static const float kPROB_THRESH = 0.7f;
+    static const float kNMS_THRESH = 0.4f;
+    static const float kPROB_THRESH = 0.3f;
 
     const std::vector<const NvDsInferLayerInfo*> sortedLayers =
         SortLayers (outputLayersInfo);
@@ -328,11 +328,12 @@ static bool NvDsInferParseYoloV3(
     for (uint idx = 0; idx < masks.size(); ++idx) {
         const NvDsInferLayerInfo &layer = *sortedLayers[idx]; // 255 x Grid x Grid
         assert (layer.dims.numDims == 3);
-        const uint gridSize = layer.dims.d[1];
-        const uint stride = networkInfo.width / gridSize;
+      const uint gridSizeY = layer.dims.d[1];
+      const uint gridSizeX = layer.dims.d[2];
+      const uint stride = networkInfo.height / gridSizeY;
 
         std::vector<NvDsInferParseObjectInfo> outObjs =
-            decodeYoloV3Tensor((const float*)(layer.buffer), masks[idx], anchors, gridSize, stride, kNUM_BBOXES,
+            decodeYoloV3Tensor((const float*)(layer.buffer), masks[idx], anchors, gridSizeX, gridSizeY, stride, kNUM_BBOXES,
                        NUM_CLASSES_YOLO, kPROB_THRESH, networkInfo.width, networkInfo.height);
         objects.insert(objects.end(), outObjs.begin(), outObjs.end());
     }
@@ -373,8 +374,8 @@ extern "C" bool NvDsInferParseCustomYoloV3Tiny(
         10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
     static const std::vector<std::vector<int>> kMASKS = {
         {3, 4, 5},
-        //{0, 1, 2}}; // as per output result, select {1,2,3}
-        {1, 2, 3}};
+        {0, 1, 2}}; // as per output result, select {1,2,3}
+//        {1, 2, 3}};
 
     return NvDsInferParseYoloV3 (
         outputLayersInfo, networkInfo, detectionParams, objectList,
@@ -408,10 +409,12 @@ static bool NvDsInferParseYoloV2(
     }
 
     assert (layer.dims.numDims == 3);
-    const uint gridSize = layer.dims.d[1];
-    const uint stride = networkInfo.width / gridSize;
+    const uint gridSizeY = layer.dims.d[1];
+    const uint gridSizeX = layer.dims.d[2];
+    const uint stride = networkInfo.height / gridSizeY;
+
     std::vector<NvDsInferParseObjectInfo> objects =
-        decodeYoloV2Tensor((const float*)(layer.buffer), kANCHORS, gridSize, stride, kNUM_BBOXES,
+        decodeYoloV2Tensor((const float*)(layer.buffer), kANCHORS, gridSizeX, gridSizeY, stride, kNUM_BBOXES,
                    NUM_CLASSES_YOLO, probthreshold, networkInfo.width, networkInfo.height);
 
     objectList.clear();

@@ -51,7 +51,7 @@ class YoloLayerV3 : public nvinfer1::IPluginV2
 {
 public:
     YoloLayerV3 (const void* data, size_t length);
-    YoloLayerV3 (const uint& numBoxes, const uint& numClasses, const uint& gridSize);
+    YoloLayerV3 (const uint& numBoxes, const uint& numClasses, const uint& gridSizeX, const uint& gridSizeY);
     const char* getPluginType () const override { return YOLOV3LAYER_PLUGIN_NAME; }
     const char* getPluginVersion () const override { return YOLOV3LAYER_PLUGIN_VERSION; }
     int getNbOutputs () const override { return 1; }
@@ -89,7 +89,8 @@ public:
 private:
     uint m_NumBoxes {0};
     uint m_NumClasses {0};
-    uint m_GridSize {0};
+    uint m_GridSizeX {0};
+    uint m_GridSizeY {0};
     uint64_t m_OutputSize {0};
     std::string m_Namespace {""};
 };

@@ -173,19 +173,21 @@ nvinfer1::INetworkDefinition *Yolo::createYoloNetwork (
         else if (m_configBlocks.at(i).at("type") == "yolo")
         {
             nvinfer1::Dims prevTensorDims = previous->getDimensions();
-            assert(prevTensorDims.d[1] == prevTensorDims.d[2]);
+//            assert(prevTensorDims.d[1] == prevTensorDims.d[2]);
             TensorInfo& curYoloTensor = m_OutputTensors.at(outputTensorCount);
-            curYoloTensor.gridSize = prevTensorDims.d[1];
-            curYoloTensor.stride = m_InputW / curYoloTensor.gridSize;
-            m_OutputTensors.at(outputTensorCount).volume = curYoloTensor.gridSize
-                * curYoloTensor.gridSize
+            curYoloTensor.gridSizeY = prevTensorDims.d[1];
+            curYoloTensor.gridSizeX = prevTensorDims.d[2];
+            curYoloTensor.stride = m_InputH / curYoloTensor.gridSizeY;
+            m_OutputTensors.at(outputTensorCount).volume = curYoloTensor.gridSizeY
+                * curYoloTensor.gridSizeX
                 * (curYoloTensor.numBBoxes * (5 + curYoloTensor.numClasses));
             std::string layerName = "yolo_" + std::to_string(i);
             curYoloTensor.blobName = layerName;
             nvinfer1::IPluginV2* yoloPlugin
                 = new YoloLayerV3(m_OutputTensors.at(outputTensorCount).numBBoxes,
                                   m_OutputTensors.at(outputTensorCount).numClasses,
-                                  m_OutputTensors.at(outputTensorCount).gridSize);
+                                  m_OutputTensors.at(outputTensorCount).gridSizeX,
+                                  m_OutputTensors.at(outputTensorCount).gridSizeY);
             assert(yoloPlugin != nullptr);
             nvinfer1::IPluginV2Layer* yolo = network->addPluginV2(&previous, 1, *yoloPlugin);
             assert(yolo != nullptr);
@@ -206,10 +208,11 @@ nvinfer1::INetworkDefinition *Yolo::createYoloNetwork (
             nvinfer1::Dims prevTensorDims = previous->getDimensions();
             assert(prevTensorDims.d[1] == prevTensorDims.d[2]);
             TensorInfo& curRegionTensor = m_OutputTensors.at(outputTensorCount);
-            curRegionTensor.gridSize = prevTensorDims.d[1];
-            curRegionTensor.stride = m_InputW / curRegionTensor.gridSize;
-            m_OutputTensors.at(outputTensorCount).volume = curRegionTensor.gridSize
-                * curRegionTensor.gridSize
+            curRegionTensor.gridSizeY = prevTensorDims.d[1];
+            curRegionTensor.gridSizeX = prevTensorDims.d[2];
+            curRegionTensor.stride = m_InputW / curRegionTensor.gridSizeX;
+            m_OutputTensors.at(outputTensorCount).volume = curRegionTensor.gridSizeX
+                * curRegionTensor.gridSizeY
                 * (curRegionTensor.numBBoxes * (5 + curRegionTensor.numClasses));
             std::string layerName = "region_" + std::to_string(i);
             curRegionTensor.blobName = layerName;
@@ -423,7 +426,7 @@ void Yolo::parseConfigBlocks()
             m_InputH = std::stoul(block.at("height"));
             m_InputW = std::stoul(block.at("width"));
             m_InputC = std::stoul(block.at("channels"));
-            assert(m_InputW == m_InputH);
+//            assert(m_InputW == m_InputH);
             m_InputSize = m_InputC * m_InputH * m_InputW;
         }
         else if ((block.at("type") == "region") || (block.at("type") == "yolo"))

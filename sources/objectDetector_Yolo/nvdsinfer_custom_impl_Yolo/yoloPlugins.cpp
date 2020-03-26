@@ -45,7 +45,7 @@ void read(const char*& buffer, T& val)
 // Forward declaration of cuda kernels
 cudaError_t cudaYoloLayerV3 (
     const void* input, void* output, const uint& batchSize,
-    const uint& gridSize, const uint& numOutputClasses,
+    const uint& gridSizeX, const uint& gridSizeY,  const uint& numOutputClasses,
     const uint& numBBoxes, uint64_t outputSize, cudaStream_t stream);
 
 YoloLayerV3::YoloLayerV3 (const void* data, size_t length)
@@ -53,20 +53,23 @@ YoloLayerV3::YoloLayerV3 (const void* data, size_t length)
     const char *d = static_cast<const char*>(data);
     read(d, m_NumBoxes);
     read(d, m_NumClasses);
-    read(d, m_GridSize);
+    read(d, m_GridSizeX);
+    read(d, m_GridSizeY);
     read(d, m_OutputSize);
 };
 
 YoloLayerV3::YoloLayerV3 (
-    const uint& numBoxes, const uint& numClasses, const uint& gridSize) :
+    const uint& numBoxes, const uint& numClasses, const uint& gridSizeX, const uint& gridSizeY) :
     m_NumBoxes(numBoxes),
     m_NumClasses(numClasses),
-    m_GridSize(gridSize)
+    m_GridSizeX(gridSizeX),
+    m_GridSizeY(gridSizeY)
 {
     assert(m_NumBoxes > 0);
     assert(m_NumClasses > 0);
-    assert(m_GridSize > 0);
-    m_OutputSize = m_GridSize * m_GridSize * (m_NumBoxes * (4 + 1 + m_NumClasses));
+    assert(m_GridSizeX > 0);
+    assert(m_GridSizeY > 0);
+    m_OutputSize = m_GridSizeX * m_GridSizeY * (m_NumBoxes * (4 + 1 + m_NumClasses));
 };
 
 nvinfer1::Dims
@@ -100,14 +103,14 @@ int YoloLayerV3::enqueue(
     cudaStream_t stream)
 {
     CHECK(cudaYoloLayerV3(
-              inputs[0], outputs[0], batchSize, m_GridSize, m_NumClasses, m_NumBoxes,
+              inputs[0], outputs[0], batchSize, m_GridSizeX, m_GridSizeY, m_NumClasses, m_NumBoxes,
               m_OutputSize, stream));
     return 0;
 }
 
 size_t YoloLayerV3::getSerializationSize() const
 {
-    return sizeof(m_NumBoxes) + sizeof(m_NumClasses) + sizeof(m_GridSize) + sizeof(m_OutputSize);
+    return sizeof(m_NumBoxes) + sizeof(m_NumClasses) + sizeof(m_GridSizeX) + sizeof(m_GridSizeY) + sizeof(m_OutputSize);
 }
 
 void YoloLayerV3::serialize(void* buffer) const
@@ -115,13 +118,14 @@ void YoloLayerV3::serialize(void* buffer) const
     char *d = static_cast<char*>(buffer);
     write(d, m_NumBoxes);
     write(d, m_NumClasses);
-    write(d, m_GridSize);
+    write(d, m_GridSizeX);
+    write(d, m_GridSizeY);
     write(d, m_OutputSize);
 }
 
 nvinfer1::IPluginV2* YoloLayerV3::clone() const
 {
-    return new YoloLayerV3 (m_NumBoxes, m_NumClasses, m_GridSize);
+    return new YoloLayerV3 (m_NumBoxes, m_NumClasses, m_GridSizeX, m_GridSizeY);
 }
 
 REGISTER_TENSORRT_PLUGIN(YoloLayerV3PluginCreator);
