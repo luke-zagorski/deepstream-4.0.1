@@ -29,7 +29,7 @@
 #include <iostream>
 #include <unordered_map>
 
-static const int NUM_CLASSES_YOLO = 13;
+static const int NUM_CLASSES_YOLO = 1;
 
 extern "C" bool NvDsInferParseCustomYoloV3(
     std::vector<NvDsInferLayerInfo> const& outputLayersInfo,
@@ -371,11 +371,11 @@ extern "C" bool NvDsInferParseCustomYoloV3Tiny(
     std::vector<NvDsInferParseObjectInfo>& objectList)
 {
     static const std::vector<float> kANCHORS = {
-        10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
+             4, 7, 7, 15, 13, 25, 25, 42, 41, 67, 75, 94, 91, 162, 158, 205, 250, 332};
     static const std::vector<std::vector<int>> kMASKS = {
-        {3, 4, 5},
-        {0, 1, 2}}; // as per output result, select {1,2,3}
-//        {1, 2, 3}};
+            {6, 7, 8},
+            {3, 4, 5},
+            {0, 1, 2}};
 
     return NvDsInferParseYoloV3 (
         outputLayersInfo, networkInfo, detectionParams, objectList,
